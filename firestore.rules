@@ -1,0 +1,72 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===== HELPERS =====
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    
+    function isListMember(list) {
+      return signedIn() && list.data.members[uid()] != null;
+    }
+    
+    function isOwner(list) {
+      return signedIn() && list.data.members[uid()].role == 'owner';
+    }
+    
+    function isEditorOrOwner(list) {
+      return signedIn() 
+        && list.data.members[uid()] != null
+        && (list.data.members[uid()].role in ['owner', 'editor']);
+    }
+    
+    // ===== PRODUCTS (catálogo universal) =====
+    match /products/{productKey} {
+      allow read: if true;                 // Todos podem ler
+      allow write: if false;               // SOMENTE Cloud Functions!
+    }
+    
+    // ===== USERS (privado) =====
+    match /users/{userId} {
+      allow read, write: if signedIn() && uid() == userId;
+      
+      match /productProfiles/{docId} {
+        allow read, write: if signedIn() && uid() == userId;
+      }
+      
+      match /recentFreeItems/{docId} {
+        allow read, write: if signedIn() && uid() == userId;
+      }
+    }
+    
+    // ===== LISTS (colaborativo) =====
+    match /lists/{listId} {
+      // Ler: se é membro
+      allow read: if isListMember(resource);
+      
+      // Criar: validar estrutura inicial
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == uid()
+        && request.resource.data.members[uid()].role == 'owner'
+        && request.resource.data.memberUids.hasAny([uid()])  // Validar array!
+        && request.resource.data.schemaVersion == 1;
+      
+      // Atualizar: owner ou editor
+      allow update: if isEditorOrOwner(resource);
+      
+      // Deletar: só owner
+      allow delete: if isOwner(resource);
+      
+      // ITENS DA LISTA
+      match /items/{itemId} {
+        allow read: if isListMember(get(/databases/$(database)/documents/lists/$(listId)));
+        allow create, update, delete: if isEditorOrOwner(get(/databases/$(database)/documents/lists/$(listId)));
+      }
+    }
+    
+    // ===== INVITES (via Cloud Function apenas) =====
+    match /invites/{inviteId} {
+      allow read, write: if false;         // Somente callable functions!
+    }
+  }
+}
