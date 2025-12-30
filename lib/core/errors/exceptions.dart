@@ -1,29 +1,31 @@
-// Exceptions for ShopMate App
-
-class FirebaseException implements Exception {
+class FirebaseAppException implements Exception {
+  FirebaseAppException(this.message);
   final String message;
-  FirebaseException(this.message);
+
   @override
-  String toString() => 'FirebaseException: $message';
+  String toString() => 'FirebaseAppException: $message';
 }
 
 class NetworkException implements Exception {
-  final String message;
   NetworkException(this.message);
+  final String message;
+
   @override
   String toString() => 'NetworkException: $message';
 }
 
 class CacheException implements Exception {
-  final String message;
   CacheException(this.message);
+  final String message;
+
   @override
   String toString() => 'CacheException: $message';
 }
 
 class ValidationException implements Exception {
-  final String message;
   ValidationException(this.message);
+  final String message;
+
   @override
   String toString() => 'ValidationException: $message';
 }
